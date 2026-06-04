@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Admin — Unipod FabLab{% endblock %}
+
+{% block head %}
+<style>
+  .qr-wrap {
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 18px; padding: 32px 28px;
+    background: var(--surf); border: 1px solid var(--borderH);
+    border-radius: 14px;
+  }
+  .qr-scanline {
+    position: absolute; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    animation: scan 3s linear infinite;
+  }
+  .qr-box {
+    padding: 14px; background: var(--surf2);
+    border: 2px solid var(--borderH); border-radius: 10px;
+    box-shadow: 0 0 40px rgba(0,212,255,.15);
+  }
+  .qr-box canvas, .qr-box img { display: block; }
+  .room-bar {
+    background: var(--surf); border: 1px solid var(--border);
+    border-left-width: 3px; border-radius: 0 8px 8px 0;
+    padding: 12px 16px; display: flex; align-items: center; gap: 14px;
+    transition: border-color .2s;
+  }
+  .room-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .room-info { flex: 1; }
+  .room-name { font-size: 13px; font-weight: 700; }
+  .room-desc { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+  .room-count { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+  .room-total { font-size: 10px; color: var(--faint); font-family: var(--mono); }
+
+  .activity-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+  .activity-row:last-child { border-bottom: none; }
+  .activity-row:hover { background: var(--surf2); }
+  .act-meta { flex: 1; }
+  .act-name { font-size: 13px; color: var(--txt); }
+  .act-code { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+  .act-times { text-align: right; font-family: var(--mono); font-size: 11px; line-height: 1.7; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:32px;">
+  <h1 class="page-title">PANNEAU ADMIN</h1>
+  <span class="page-sub" style="text-transform:capitalize;">
+    {{ now.strftime('%A %d %B %Y') if now else '' }}
+  </span>
+</div>
+
+<!-- Stats -->
+<div class="grid-4" style="margin-bottom:28px;">
+  <div class="stat-card" style="border-top-color:var(--cyan);">
+    <div class="stat-label">Présents</div>
+    <div class="stat-val" style="color:var(--cyan);">{{ present|length }}</div>
+    <div class="stat-sub">actuellement dans le lab</div>
+  </div>
+  <div class="stat-card" style="border-top-color:var(--amber);">
+    <div class="stat-label">Passages du jour</div>
+    <div class="stat-val" style="color:var(--amber);">{{ total }}</div>
+    <div class="stat-sub">depuis l'ouverture</div>
+  </div>
+  <div class="stat-card" style="border-top-color:var(--green);">
+    <div class="stat-label">Salles actives</div>
+    <div class="stat-val" style="color:var(--green);">{{ room_stats|selectattr('now','gt',0)|list|length }}<span style="font-size:18px;color:var(--faint);">/{{ room_stats|length }}</span></div>
+    <div class="stat-sub">en cours d'utilisation</div>
+  </div>
+  <div class="stat-card" style="border-top-color:var(--purple);">
+    <div class="stat-label">Sorties</div>
+    <div class="stat-val" style="color:var(--purple);">{{ departed }}</div>
+    <div class="stat-sub">ont déjà quitté</div>
+  </div>
+</div>
+
+<!-- QR + Rooms -->
+<div class="grid-2" style="margin-bottom:28px;align-items:start;">
+
+  <!-- QR Code -->
+  <div class="qr-wrap">
+    <div class="qr-scanline"></div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:2px;">▶ SCANNER POUR S'ENREGISTRER</div>
+    <div class="qr-box">
+      <div id="qrcode"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="dot"></span>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--muted);">QR CODE ACTIF · ENTRÉE UNIPOD</span>
+    </div>
+    <a href="{{ url_for('checkin') }}" class="btn btn-ghost" style="font-size:11px;">↗ Simuler un scan</a>
+  </div>
+
+  <!-- Room Status -->
+  <div>
+    <div class="card-title" style="margin-bottom:12px;">État des salles</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      {% set room_descs = {
+        'ia_robotics':    'Intelligence Artificielle · Robotique',
+        'eco_innovation': 'Innovation Durable · Éco-conception',
+        'prototyping':    'Fabrication · Impression 3D',
+        'food':           'Innovation Alimentaire · Agri-tech',
+        'multimedia':     'Création Numérique · Médias'
+      } %}
+      {% for r in room_stats %}
+      <div class="room-bar" style="border-left-color:{{ r.color if r.now > 0 else 'var(--faint)' }};">
+        <div class="room-dot" style="background:{{ r.color if r.now > 0 else 'var(--faint)' }};box-shadow:{{ ('0 0 7px ' + r.color) if r.now > 0 else 'none' }};animation:{{ 'pulse 2s ease-in-out infinite' if r.now > 0 else 'none' }};"></div>
+        <div class="room-info">
+          <div class="room-name" style="color:{{ r.color if r.now > 0 else 'var(--muted)' }};">{{ r.name }}</div>
+          <div class="room-desc">{{ room_descs.get(r.id, '') }}</div>
+        </div>
+        <div>
+          <div class="room-count" style="color:{{ r.color if r.now > 0 else 'var(--faint)' }};">{{ r.now }}</div>
+          <div class="room-total">/ {{ r.total }} total</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Recent Activity -->
+<div>
+  <div class="card-title">Activité récente</div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    {% if not recent %}
+    <div style="padding:32px;text-align:center;color:var(--faint);font-size:13px;">Aucune activité enregistrée.</div>
+    {% endif %}
+    {% for v in recent %}
+    {% set rc = room_color(v.room) %}
+    {% set rn = room_name(v.room) %}
+    <div class="activity-row">
+      <div class="avatar" style="background:{{ rc }}22;border:1px solid {{ rc }}55;color:{{ rc }};">
+        {{ v.prenom[0] }}{{ v.nom[0] }}
+      </div>
+      <div class="act-meta">
+        <div class="act-name">{{ v.prenom }} {{ v.nom }}</div>
+        <div class="act-code">{{ v.code }} · {{ v.dept }}</div>
+      </div>
+      <span class="tag" style="background:{{ rc }}22;border:1px solid {{ rc }}44;color:{{ rc }};">{{ rn }}</span>
+      <div class="act-times">
+        <div style="color:var(--green);">↑ {{ fmt_time(v.entree) }}</div>
+        {% if v.sortie %}
+        <div style="color:var(--red);">↓ {{ fmt_time(v.sortie) }}</div>
+        {% else %}
+        <div style="color:var(--amber);">{{ fmt_duration(v.entree) }} en cours</div>
+        {% endif %}
+      </div>
+      {% if not v.sortie %}
+      <a href="{{ url_for('checkout', code=v.code) }}" class="btn btn-danger" style="padding:7px 14px;font-size:10px;">↓ Sortie</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  new QRCode(document.getElementById("qrcode"), {
+    text: "{{ checkin_url }}",
+    width: 220, height: 220,
+    colorDark: "#00d4ff",
+    colorLight: "#111928",
+    correctLevel: QRCode.CorrectLevel.H
+  });
+</script>
+{% endblock %}

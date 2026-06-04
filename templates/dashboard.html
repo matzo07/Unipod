@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Journal — Unipod FabLab{% endblock %}
+
+{% block head %}
+<style>
+  .filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 7px 16px;
+    background: transparent; border: 1px solid var(--faint);
+    color: var(--muted); border-radius: 6px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .5px;
+    cursor: pointer; text-decoration: none;
+    transition: all .2s;
+  }
+  .filter-btn:hover { border-color: var(--borderH); color: var(--txt); }
+  .filter-btn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(0,212,255,.08); }
+  .search-input {
+    padding: 7px 14px; background: var(--surf2);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--txt); font-family: var(--sans); font-size: 12px;
+    outline: none; width: 200px;
+    transition: border-color .2s;
+  }
+  .search-input:focus { border-color: var(--cyan); }
+
+  .bar-row { display: flex; align-items: center; gap: 14px; }
+  .bar-label { width: 100px; font-size: 12px; color: var(--muted); text-align: right; flex-shrink: 0; font-family: var(--mono); }
+  .bar-track { flex: 1; height: 8px; background: var(--surf2); border-radius: 4px; overflow: hidden; }
+  .bar-fill  { height: 100%; border-radius: 4px; transition: width .5s ease; }
+  .bar-count { width: 28px; font-size: 12px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  .status-badge {
+    padding: 3px 9px; border-radius: 4px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: .5px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:28px;">
+  <h1 style="font-size:22px;font-weight:800;color:var(--txt);letter-spacing:1px;">JOURNAL DES PASSAGES</h1>
+  <div style="flex:1;"></div>
+  <div class="filters">
+    <a href="?filtre=all&q={{ search|urlencode }}"     class="filter-btn {% if filtre=='all'     %}active{% endif %}">Tous</a>
+    <a href="?filtre=present&q={{ search|urlencode }}" class="filter-btn {% if filtre=='present' %}active{% endif %}">Présents</a>
+    <a href="?filtre=parti&q={{ search|urlencode }}"   class="filter-btn {% if filtre=='parti'   %}active{% endif %}">Partis</a>
+    <form method="GET" style="margin:0;">
+      <input type="hidden" name="filtre" value="{{ filtre }}">
+      <input class="search-input" type="text" name="q" value="{{ search }}" placeholder="Rechercher..." autocomplete="off">
+    </form>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="grid-3" style="margin-bottom:24px;">
+  <div class="stat-card" style="border-top-color:var(--cyan);">
+    <div class="stat-label">Total passages</div>
+    <div class="stat-val" style="color:var(--cyan);">{{ total }}</div>
+  </div>
+  <div class="stat-card" style="border-top-color:var(--amber);">
+    <div class="stat-label">Durée moy. visite</div>
+    <div class="stat-val" style="color:var(--amber);">{{ avg_dur }}</div>
+  </div>
+  <div class="stat-card" style="border-top-color:{{ top_room.color if top_room else 'var(--purple)' }};">
+    <div class="stat-label">Salle + fréquentée</div>
+    <div class="stat-val" style="color:{{ top_room.color if top_room else 'var(--purple)' }};">{{ top_room.name[:8] ~ '…' if top_room and top_room.name|length > 9 else (top_room.name if top_room else '—') }}</div>
+    {% if top_room %}<div class="stat-sub">{{ top_room.count }} passage(s)</div>{% endif %}
+  </div>
+</div>
+
+<!-- Room distribution chart -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-title">Répartition par salle</div>
+  <div style="display:flex;flex-direction:column;gap:12px;">
+    {% for r in room_stats %}
+    <div class="bar-row">
+      <div class="bar-label">{{ r.name[:12] }}{% if r.name|length > 12 %}…{% endif %}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:{{ r.pct }}%;background:{{ r.color }};box-shadow:0 0 6px {{ r.color }}88;"></div>
+      </div>
+      <div class="bar-count" style="color:{{ r.color }};">{{ r.count }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Table -->
+<div class="card" style="padding:0;overflow:hidden;">
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Nom & Prénom</th>
+          <th>Code Permanent</th>
+          <th>Département</th>
+          <th>Salle</th>
+          <th>Entrée</th>
+          <th>Sortie</th>
+          <th>Durée</th>
+          <th>Statut</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if not visits %}
+        <tr><td colspan="9" style="text-align:center;padding:36px;color:var(--faint);">Aucun résultat trouvé.</td></tr>
+        {% endif %}
+        {% for v in visits %}
+        {% set rc = room_color(v.room) %}
+        {% set rn = room_name(v.room) %}
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="avatar" style="width:30px;height:30px;font-size:10px;background:{{ rc }}22;border:1px solid {{ rc }}55;color:{{ rc }};">
+                {{ v.prenom[0] }}{{ v.nom[0] }}
+              </div>
+              <span>{{ v.prenom }} {{ v.nom }}</span>
+            </div>
+          </td>
+          <td style="font-family:var(--mono);color:var(--muted);">{{ v.code }}</td>
+          <td style="color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ v.dept }}</td>
+          <td><span class="tag" style="background:{{ rc }}22;border:1px solid {{ rc }}44;color:{{ rc }};">{{ rn }}</span></td>
+          <td style="font-family:var(--mono);color:var(--green);white-space:nowrap;">↑ {{ fmt_time(v.entree) }}</td>
+          <td style="font-family:var(--mono);color:{{ 'var(--red)' if v.sortie else 'var(--faint)' }};white-space:nowrap;">{{ ('↓ ' + fmt_time(v.sortie)) if v.sortie else '—' }}</td>
+          <td style="font-family:var(--mono);color:var(--amber);">{{ fmt_duration(v.entree, v.sortie) }}</td>
+          <td>
+            {% if v.sortie %}
+            <span class="status-badge" style="background:rgba(70,70,70,.2);border:1px solid var(--faint);color:var(--muted);">PARTI</span>
+            {% else %}
+            <span class="status-badge" style="background:rgba(0,230,118,.08);border:1px solid {{ 'var(--green)' }}66;color:var(--green);">PRÉSENT</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if not v.sortie %}
+            <a href="{{ url_for('checkout', code=v.code) }}" class="btn btn-danger" style="padding:5px 12px;font-size:10px;">↓</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4" style="padding:10px 14px;">{{ visits|length }} entrée(s) affichée(s)</td>
+          <td colspan="5" style="padding:10px 14px;text-align:right;">{{ present }} actuellement dans le lab</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}

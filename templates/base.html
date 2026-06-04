@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Unipod FabLab{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #060a14;
+      --surf:     #0c1222;
+      --surf2:    #111928;
+      --border:   rgba(0,212,255,.12);
+      --borderH:  rgba(0,212,255,.35);
+      --cyan:     #00d4ff;
+      --green:    #00e676;
+      --amber:    #ffd740;
+      --red:      #ff6e6e;
+      --purple:   #c77dff;
+      --txt:      #dde6f0;
+      --muted:    #8892b0;
+      --faint:    #3a4460;
+      --mono:     'Share Tech Mono', monospace;
+      --sans:     'Syne', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--txt);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Grid background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(0,212,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,.025) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+
+    /* ── NAV ── */
+    nav.topnav {
+      position: sticky; top: 0; z-index: 200;
+      background: rgba(6,10,20,.96);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 0;
+      padding: 0 28px;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 14px;
+      padding: 10px 0; margin-right: 8px;
+      border-right: 1px solid var(--border);
+      padding-right: 20px;
+    }
+    .nav-logo img { height: 34px; filter: brightness(0) invert(1); }
+    .nav-logo span {
+      font-family: var(--mono); font-size: 10px;
+      color: var(--cyan); letter-spacing: 2px; opacity: .7;
+    }
+    .nav-links { display: flex; flex: 1; }
+    .nav-links a {
+      display: flex; align-items: center; gap: 7px;
+      padding: 18px 18px;
+      color: var(--muted); text-decoration: none;
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+      border-bottom: 2px solid transparent;
+      transition: all .2s;
+    }
+    .nav-links a:hover { color: var(--txt); }
+    .nav-links a.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+    .nav-links a .ico { font-size: 13px; }
+    .nav-right {
+      display: flex; align-items: center; gap: 16px;
+      margin-left: auto;
+    }
+    .live-badge {
+      display: flex; align-items: center; gap: 7px;
+      font-family: var(--mono); font-size: 11px; color: var(--muted);
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    #clock {
+      font-family: var(--mono); font-size: 13px; color: var(--cyan);
+      min-width: 65px; text-align: right;
+    }
+
+    /* ── LAYOUT ── */
+    main { flex: 1; position: relative; z-index: 1; padding: 36px 28px; max-width: 1100px; width: 100%; margin: 0 auto; }
+
+    footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex; justify-content: center; gap: 24px;
+      font-family: var(--mono); font-size: 10px; color: var(--faint);
+    }
+
+    /* ── COMPONENTS ── */
+    .page-title { font-size: 22px; font-weight: 800; color: var(--cyan); letter-spacing: 2px; text-transform: uppercase; }
+    .page-sub   { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+    .card {
+      background: var(--surf);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .card-title {
+      font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+    }
+
+    .stat-card {
+      background: var(--surf);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 22px;
+      border-top-width: 2px;
+    }
+    .stat-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; }
+    .stat-val   { font-size: 36px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+    .stat-sub   { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+    .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px 28px;
+      border-radius: 7px; border: 1px solid;
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+      cursor: pointer; text-decoration: none;
+      transition: all .2s;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary { background: rgba(0,212,255,.1); border-color: var(--cyan); color: var(--cyan); }
+    .btn-primary:hover:not(:disabled) { background: rgba(0,212,255,.2); box-shadow: 0 0 16px rgba(0,212,255,.2); }
+    .btn-success { background: rgba(0,230,118,.1); border-color: var(--green); color: var(--green); }
+    .btn-success:hover:not(:disabled) { background: rgba(0,230,118,.2); }
+    .btn-danger  { background: rgba(255,110,110,.1); border-color: var(--red); color: var(--red); }
+    .btn-danger:hover:not(:disabled)  { background: rgba(255,110,110,.2); }
+    .btn-ghost   { background: transparent; border-color: var(--faint); color: var(--muted); }
+    .btn-ghost:hover { border-color: var(--muted); color: var(--txt); }
+    .btn-full    { width: 100%; }
+
+    /* Form inputs */
+    .form-group { margin-bottom: 18px; }
+    .form-label { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+    .form-input, .form-select {
+      width: 100%; padding: 11px 14px;
+      background: var(--surf2); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--txt);
+      font-family: var(--sans); font-size: 14px;
+      outline: none; transition: border-color .2s;
+    }
+    .form-input:focus, .form-select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,212,255,.06); }
+    .form-select { appearance: none; cursor: pointer; }
+    .form-select option { background: var(--surf2); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* Tags */
+    .tag {
+      display: inline-block; padding: 3px 10px;
+      border-radius: 4px; font-family: var(--mono); font-size: 10px;
+      letter-spacing: .5px; white-space: nowrap;
+    }
+
+    /* Table */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      padding: 10px 14px; text-align: left;
+      font-family: var(--mono); font-size: 10px; color: var(--muted);
+      font-weight: 400; letter-spacing: 1px; text-transform: uppercase;
+      background: var(--surf2); white-space: nowrap;
+    }
+    .data-table td { padding: 11px 14px; font-size: 13px; border-top: 1px solid var(--border); vertical-align: middle; }
+    .data-table tbody tr:hover td { background: var(--surf2); }
+    .data-table tfoot td { font-family: var(--mono); font-size: 11px; color: var(--faint); border-top: 1px solid var(--border); }
+
+    /* Avatar */
+    .avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: 11px; font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* Alert */
+    .alert { padding: 10px 14px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; }
+    .alert-err  { background: rgba(255,110,110,.08); border: 1px solid rgba(255,110,110,.3); color: var(--red); }
+
+    /* Animations */
+    @keyframes pulse  { 0%,100%{opacity:.6} 50%{opacity:1} }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes scan   { from{top:-5%} to{top:105%} }
+    .fade-in { animation: fadeIn .35s ease forwards; }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--faint); border-radius: 4px; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="nav-logo">
+    <img src="https://unipodlr.org/wp-content/uploads/2024/12/Unipod-Logo-SVG1-01.png" alt="Unipod">
+    <span>FABLAB</span>
+  </div>
+  <div class="nav-links">
+    <a href="{{ url_for('admin') }}"     class="{% if request.endpoint=='admin'     %}active{% endif %}"><span class="ico">⬡</span> ADMIN</a>
+    <a href="{{ url_for('checkin') }}"   class="{% if request.endpoint in ['checkin','checkin_success']   %}active{% endif %}"><span class="ico">↑</span> ENTRÉE</a>
+    <a href="{{ url_for('checkout') }}"  class="{% if request.endpoint in ['checkout','checkout_success'] %}active{% endif %}"><span class="ico">↓</span> SORTIE</a>
+    <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint=='dashboard' %}active{% endif %}"><span class="ico">⊞</span> JOURNAL</a>
+  </div>
+  <div class="nav-right">
+    <div class="live-badge">
+      <span class="dot"></span>
+      <span id="present-count">…</span> présent(s)
+    </div>
+    <span id="clock">--:--:--</span>
+  </div>
+</nav>
+
+<main class="fade-in">
+  {% block content %}{% endblock %}
+</main>
+
+<footer>
+  <span>UNIPOD FABLAB · Système de Gestion des Présences</span>
+  <span>|</span>
+  <span>{{ now.year if now else '' }}</span>
+</footer>
+
+<script>
+  // Live clock
+  function tick(){
+    const d = new Date();
+    document.getElementById('clock').textContent = d.toLocaleTimeString('fr-FR');
+  }
+  tick(); setInterval(tick, 1000);
+
+  // Live present count
+  async function updatePresent(){
+    try {
+      const r = await fetch('/api/present');
+      const j = await r.json();
+      document.getElementById('present-count').textContent = j.count;
+    } catch(e){}
+  }
+  updatePresent(); setInterval(updatePresent, 10000);
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
